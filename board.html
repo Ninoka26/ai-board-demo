@@ -1,0 +1,280 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ИИ-доска v1.3</title><style>
+:root{font:16px system-ui,Arial;color:#243146;background:#f4f6fb}*{box-sizing:border-box}body{margin:0}header{background:#fff;padding:18px 26px;border-bottom:1px solid #dde2ed;display:flex;align-items:center;gap:12px;flex-wrap:wrap}h1{font-size:22px;margin:0 20px 0 0}button,.file{cursor:pointer;border:1px solid #c7d0e1;background:white;border-radius:9px;padding:9px 14px;color:#233550;font:inherit}button:hover,.file:hover{background:#eaf0ff}.primary{background:#315ad8;color:white;border:0}.primary:hover{background:#254ab7}main{padding:20px 26px}#board{display:flex;align-items:flex-start;flex-wrap:wrap;gap:18px}.note{width:280px;min-height:175px;padding:16px;border-radius:14px;background:#fff6d6;border:2px solid transparent;box-shadow:0 3px 12px #273d6414}.note.selected{border-color:#315ad8}.note.summary{background:#e6f4ff}.note h3{margin:6px 0 12px;font-size:17px}.note p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}.note textarea,.note input{width:100%;border:1px solid #bbc5d8;border-radius:6px;padding:8px;font:inherit}.note textarea{height:120px;resize:vertical}.note .actions{display:flex;justify-content:space-between;gap:6px;margin-top:12px}.note .actions button{font-size:12px;padding:5px 9px}#status{font-size:13px;color:#546780}#dialog{z-index:10000;position:fixed;inset:0;background:#0007;display:none;align-items:center;justify-content:center}#dialog>section{background:white;padding:25px;border-radius:14px;width:min(460px,92vw)}#dialog input,#dialog textarea{width:100%;margin:8px 0 14px;padding:10px;font:inherit}#dialog textarea{height:140px}.small{font-size:13px;color:#69748b}header input[type=file]{display:none}.attach input[type=file]{display:block;width:100%;font-size:13px}.attach{margin-bottom:12px}.preview{max-width:100%;max-height:180px;object-fit:contain;border-radius:8px}.attachmentLink{display:block;margin:10px 0;overflow-wrap:anywhere} #board{position:relative;display:block;min-height:700px;min-width:1200px;background-image:radial-gradient(#ccd5e4 1px,transparent 1px);background-size:24px 24px;border-radius:12px}main{overflow:auto}.note{position:absolute;z-index:2}.note h3{cursor:grab;touch-action:none;user-select:none}#links{position:absolute;left:0;top:0;z-index:1;pointer-events:none} .voiceRow{display:flex;align-items:flex-start;gap:8px}.voiceRow input,.voiceRow textarea{flex:1;min-width:0}.voiceRow button{margin-top:8px;min-width:46px}.voiceRow button.listening{background:#e5efff;border-color:#315ad8}#voiceStatus{margin:0 0 12px} @media(max-width:700px){
+ header{padding:12px;gap:8px;align-items:center}
+ header h1{font-size:18px;margin:0;flex:1}
+ #mobileMenuButton{display:inline-flex!important}
+ #boardSelect{order:2;max-width:none!important;flex:1;min-width:130px}
+ header>button.primary{order:3}
+ #searchNotes{order:4;max-width:none!important;flex:1;min-width:130px}
+ .secondaryActions{display:none;width:100%;order:6;flex-direction:column;gap:8px;background:#f4f6fb;padding:10px;border-radius:10px}
+ .secondaryActions.open{display:flex}
+ .secondaryActions button,.secondaryActions .file{width:100%;text-align:left}
+ #status{order:7;width:100%}
+ main{padding:12px;overflow:visible}
+ main>.small{font-size:12px}
+ #board{min-width:0!important;min-height:200px!important;display:flex!important;flex-direction:column;gap:12px;background:none}
+ #board .note{position:relative!important;left:auto!important;top:auto!important;width:100%;min-height:0}
+ #board .note h3{cursor:default;touch-action:auto}
+ #links{display:none}
+ .note .actions{flex-wrap:wrap}
+ #dialog>section{max-height:90dvh;overflow:auto;padding:16px}
+}
+#mobileMenuButton{display:none}
+.secondaryActions{display:contents}
+</style></head><body>
+<header><h1>🧩 ИИ-доска v1.3</h1><button id="mobileMenuButton" onclick="toggleMenu()" aria-label="Открыть меню" aria-expanded="false">☰ Меню</button><select id="boardSelect" aria-label="Выбор доски" onchange="switchBoard(this.value)" style="padding:9px;border:1px solid #c7d0e1;border-radius:9px;max-width:190px"></select><button onclick="createBoard()">+ Доска</button><button onclick="deleteCurrentBoard()">Удалить доску</button><button onclick="edit()">+ Заметка</button><button class="primary" onclick="quickNote()">⚡ Запомни</button><span class="secondaryActions"><input id="searchNotes" type="search" placeholder="🔎 Поиск заметок" aria-label="Поиск заметок" oninput="render()" style="padding:9px;border:1px solid #c7d0e1;border-radius:9px;max-width:200px"><button onclick="connectSelected()">↗ Связать две карточки</button><button class="primary" onclick="analyze()">✨ Анализ GigaChat</button><button onclick="exportData()" title="Скачать файл со всеми досками на компьютер">Скачать копию на компьютер</button><button onclick="saveArchive()" title="Сохранить снимок внутри браузера">Сохранить запасную копию</button><button onclick="downloadArchive()" title="Выбрать снимок по дате и скачать">Мои запасные копии</button><label class="file">Восстановить из файла<input type="file" accept=".json,application/json" onchange="importData(event)"></label></span><span id="status">Выделите заметки для анализа</span></header>
+<main><p class="small">Нажмите на карточку, чтобы выделить её. Перетаскивайте карточки за заголовок. Выделите две карточки и нажмите «Связать». Можно выделить несколько заметок и получить общую сводку от GigaChat. Данные хранятся в этом браузере; в нейросеть отправляется только текст выбранных заметок.</p><div id="board"><svg id="links"></svg></div></main>
+<div id="dialog"><section><h2 id="dialogTitle">Заметка</h2><div class="voiceRow"><input id="title" placeholder="Заголовок"><button type="button" id="voiceTitle" onclick="toggleVoice('title')">🎤</button></div><div class="voiceRow"><textarea id="content" placeholder="Текст заметки"></textarea><button type="button" id="voiceContent" onclick="toggleVoice('content')">🎤</button></div><div id="voiceStatus" class="small" role="status" aria-live="polite">Микрофон: нажмите рядом с нужным полем</div><div class="attach"><label for="attachment">📎 Изображение (любого обычного размера) или PDF до 1 МБ</label><input id="attachment" type="file" accept="image/png,image/jpeg,image/webp,application/pdf"><button type="button" onclick="removeAttachment()">Убрать вложение</button><div id="attachmentInfo" class="small"></div></div><button class="primary" onclick="save()">Сохранить</button> <button onclick="closeDialog()">Отмена</button></section></div>
+<script>
+const STORE='ai_board_v03_notes';let notes=[];let editing=null;let pendingAttachment=null;let selected=new Set();let connections=[];try{connections=JSON.parse(localStorage.getItem("ai_board_v04_links")||"[]")}catch{}
+try{notes=JSON.parse(localStorage.getItem(STORE)||'[]');if(!Array.isArray(notes))notes=[]}catch{notes=[]}
+const BOARD_LIST_KEY='ai_board_v10_boards',ACTIVE_BOARD_KEY='ai_board_v10_active';
+let boards=[{id:'main',name:'Моя доска'}];
+try{const saved=JSON.parse(localStorage.getItem(BOARD_LIST_KEY)||'null');if(Array.isArray(saved)&&saved.some(b=>b.id==='main'))boards=saved}catch{}
+let activeBoard=localStorage.getItem(ACTIVE_BOARD_KEY)||'main';
+if(!boards.some(b=>b.id===activeBoard))activeBoard='main';
+function noteKey(id){return id==='main'?STORE:'ai_board_v10_notes_'+id}
+function linkKey(id){return id==='main'?'ai_board_v04_links':'ai_board_v10_links_'+id}
+function persist(){localStorage.setItem(noteKey(activeBoard),JSON.stringify(notes));localStorage.setItem(linkKey(activeBoard),JSON.stringify(connections))}
+function refreshBoards(){
+ const select=document.getElementById('boardSelect');select.replaceChildren();
+ boards.forEach(b=>{const option=document.createElement('option');option.value=b.id;option.textContent=b.name;select.append(option)});
+ select.value=activeBoard;
+}
+function switchBoard(id){
+ if(!boards.some(b=>b.id===id))return;
+ if(recorder){alert('Сначала завершите голосовую запись');refreshBoards();return}
+ if(document.getElementById('dialog').style.display==='flex'){alert('Сначала сохраните или закройте заметку');refreshBoards();return}
+ try{
+  persist();
+  const nextNotes=JSON.parse(localStorage.getItem(noteKey(id))||'[]');
+  const nextLinks=JSON.parse(localStorage.getItem(linkKey(id))||'[]');
+  if(!Array.isArray(nextNotes)||!Array.isArray(nextLinks))throw Error('Неверный формат доски');
+  notes=nextNotes;connections=nextLinks;activeBoard=id;
+  localStorage.setItem(ACTIVE_BOARD_KEY,id);selected.clear();refreshBoards();render();
+ }catch(e){alert('Не удалось открыть доску: '+e.message);refreshBoards()}
+}
+function deleteCurrentBoard(){
+ if(activeBoard==='main')return alert('Главную доску удалять нельзя');
+ const b=boards.find(x=>x.id===activeBoard);
+ if(!b)return;
+ if(!confirm('Удалить доску «'+b.name+'»? Карточки этой доски будут удалены.'))return;
+ if(prompt('Введите УДАЛИТЬ для подтверждения')!=='УДАЛИТЬ')return;
+ try{
+  const next=boards.filter(x=>x.id!==activeBoard);
+  localStorage.setItem(BOARD_LIST_KEY,JSON.stringify(next));
+  localStorage.removeItem(noteKey(activeBoard));
+  localStorage.removeItem(linkKey(activeBoard));
+  boards=next;activeBoard='main';
+  localStorage.setItem(ACTIVE_BOARD_KEY,'main');
+  notes=JSON.parse(localStorage.getItem(STORE)||'[]');
+  connections=JSON.parse(localStorage.getItem('ai_board_v04_links')||'[]');
+  selected.clear();refreshBoards();render();
+ }catch(e){alert('Не удалось удалить доску: '+e.message)}
+}
+function createBoard(){
+ const name=prompt('Название новой доски:');
+ if(!name||!name.trim())return;
+ const label=name.trim().slice(0,70),id=crypto.randomUUID();
+ try{
+  persist();
+  localStorage.setItem(noteKey(id),'[]');
+  localStorage.setItem(linkKey(id),'[]');
+  boards.push({id,name:label});
+  localStorage.setItem(BOARD_LIST_KEY,JSON.stringify(boards));
+  switchBoard(id);
+ }catch(e){alert('Не удалось создать доску: '+e.message)}
+}
+
+if(activeBoard!=='main'){
+ try{notes=JSON.parse(localStorage.getItem(noteKey(activeBoard))||'[]');connections=JSON.parse(localStorage.getItem(linkKey(activeBoard))||'[]')}catch{notes=[];connections=[]}
+}
+refreshBoards();
+function render(){const board=document.getElementById('board');board.replaceChildren();let svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.id='links';board.append(svg);notes.forEach((n,i)=>{const q=(document.getElementById('searchNotes')?.value||'').trim().toLocaleLowerCase();if(q&&!((n.title||'')+' '+(n.text||'')).toLocaleLowerCase().includes(q))return;if(!Number.isFinite(n.x))n.x=25+(i%4)*310;if(!Number.isFinite(n.y))n.y=25+Math.floor(i/4)*235;let card=document.createElement('article');card.className='note'+(n.summary?' summary':'')+(selected.has(n.id)?' selected':'');card.style.left=n.x+'px';card.style.top=n.y+'px';card.dataset.id=n.id;card.onclick=()=>{selected.has(n.id)?selected.delete(n.id):selected.add(n.id);render()};let h=document.createElement('h3');h.textContent=n.title||'Без названия';h.title='Перетащите за заголовок';h.addEventListener('pointerdown',e=>beginDrag(e,n,card));let p=document.createElement('p');p.textContent=(n.text||'').replace(/^\s{0,3}#{1,6}\s+/gm,'').replace(/\*\*(.*?)\*\*/g,'$1');let actions=document.createElement('div');actions.className='actions';let editButton=document.createElement('button');editButton.textContent='Изменить';editButton.onclick=e=>{e.stopPropagation();edit(n.id)};let deleteButton=document.createElement('button');deleteButton.textContent='Удалить';deleteButton.onclick=e=>{e.stopPropagation();if(confirm('Удалить карточку?')){notes=notes.filter(x=>x.id!==n.id);connections=connections.filter(c=>!c.includes(n.id));selected.delete(n.id);persist();render()}};let speakButton=document.createElement('button');speakButton.textContent='🔊 Прочитать';speakButton.title='Прочитать или остановить чтение';speakButton.onclick=e=>{e.stopPropagation();readNote(n)};actions.append(speakButton,editButton,deleteButton);card.append(h,p);if(n.attachment){if(n.attachment.type.startsWith('image/')){let img=document.createElement('img');img.className='preview';img.src=n.attachment.data;img.alt=n.attachment.name;card.append(img)}else{let link=document.createElement('a');link.className='attachmentLink';link.href=n.attachment.data;link.target='_blank';link.rel='noopener';link.textContent='📄 '+n.attachment.name;link.onclick=e=>e.stopPropagation();card.append(link)}}card.append(actions);board.append(card)});document.getElementById('status').textContent='Выбрано: '+selected.size;drawLinks()}
+let spokenNoteId=null;
+function readNote(n){
+ const synth=window.speechSynthesis;
+ if(!synth){alert('Этот браузер не поддерживает озвучивание текста');return}
+ if(spokenNoteId===n.id&&synth.speaking){synth.cancel();spokenNoteId=null;return}
+ synth.cancel();
+ const text=[n.title,n.text].filter(Boolean).join('. ').trim();
+ if(!text){alert('В карточке нет текста для чтения');return}
+ const utterance=new SpeechSynthesisUtterance(text);
+ utterance.lang='ru-RU';utterance.rate=0.95;
+ const voices=synth.getVoices();
+ const ru=voices.find(v=>v.lang.toLowerCase().startsWith('ru'));
+ if(ru)utterance.voice=ru;
+ spokenNoteId=n.id;
+ utterance.onend=()=>{if(spokenNoteId===n.id)spokenNoteId=null};
+ utterance.onerror=()=>{if(spokenNoteId===n.id)spokenNoteId=null};
+ synth.speak(utterance);
+}
+function toggleMenu(){
+ const panel=document.querySelector('.secondaryActions');
+ const open=panel.classList.toggle('open');
+ document.getElementById('mobileMenuButton').setAttribute('aria-expanded',String(open));
+}
+function quickNote(){
+ edit();
+ document.getElementById('dialogTitle').textContent='Быстрая заметка';
+ document.getElementById('content').focus();
+}
+function beginDrag(e,n,card){if(window.matchMedia("(max-width:700px)").matches)return;if(e.button!==0)return;e.preventDefault();e.stopPropagation();let sx=e.clientX,sy=e.clientY,ox=n.x,oy=n.y,moved=false;card.setPointerCapture(e.pointerId);function move(ev){if(Math.abs(ev.clientX-sx)+Math.abs(ev.clientY-sy)>4)moved=true;n.x=Math.max(0,ox+ev.clientX-sx);n.y=Math.max(0,oy+ev.clientY-sy);card.style.left=n.x+'px';card.style.top=n.y+'px';drawLinks()}function end(){card.removeEventListener('pointermove',move);card.removeEventListener('pointerup',end);card.removeEventListener('pointercancel',end);if(moved)persist();else{selected.has(n.id)?selected.delete(n.id):selected.add(n.id);render()}}card.addEventListener('pointermove',move);card.addEventListener('pointerup',end);card.addEventListener('pointercancel',end)}
+function connectSelected(){let ids=[...selected];if(ids.length!==2)return alert('Выделите ровно две карточки');let exists=connections.findIndex(c=>c.includes(ids[0])&&c.includes(ids[1]));if(exists>=0)connections.splice(exists,1);else connections.push(ids);selected.clear();persist();render()}
+function drawLinks(){if(window.matchMedia("(max-width:700px)").matches)return;let svg=document.getElementById('links');if(!svg)return;svg.replaceChildren();let maxX=1200,maxY=700;notes.forEach(n=>{maxX=Math.max(maxX,(n.x||0)+310);maxY=Math.max(maxY,(n.y||0)+230)});svg.setAttribute('width',maxX);svg.setAttribute('height',maxY);document.getElementById('board').style.minWidth=maxX+'px';document.getElementById('board').style.minHeight=maxY+'px';connections.forEach(([a,b])=>{let na=notes.find(n=>n.id===a),nb=notes.find(n=>n.id===b);if(!na||!nb)return;let line=document.createElementNS('http://www.w3.org/2000/svg','line');line.setAttribute('x1',na.x+140);line.setAttribute('y1',na.y+85);line.setAttribute('x2',nb.x+140);line.setAttribute('y2',nb.y+85);line.setAttribute('stroke','#6078a8');line.setAttribute('stroke-width','3');svg.append(line)})}
+let recorder=null,voiceStream=null,voiceChunks=[],voiceTarget=null,voiceBase='';
+function voiceMessage(msg){document.getElementById('voiceStatus').textContent=msg}
+function stopVoice(){if(recorder&&recorder.state==='recording'){recorder.stop();return}if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null}}
+async function toggleVoice(field){
+ if(recorder&&recorder.state==='recording'){stopVoice();return}
+ if(recorder){voiceMessage('Подождите завершения распознавания');return}
+ if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){voiceMessage('Браузер не поддерживает запись звука');return}
+ try{
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  voiceStream=stream;voiceTarget=field;voiceBase=document.getElementById(field).value.trim();voiceChunks=[];
+  const mime=['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(t=>MediaRecorder.isTypeSupported(t));
+  recorder=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
+  const current=recorder;
+  current.ondataavailable=e=>{if(e.data.size)voiceChunks.push(e.data)};
+  current.onstop=async()=>{
+   stream.getTracks().forEach(t=>t.stop());voiceStream=null;
+   document.querySelectorAll('.voiceRow button').forEach(b=>b.classList.remove('listening'));
+   voiceMessage('Распознаю запись на компьютере…');
+   try{
+    const blob=new Blob(voiceChunks,{type:current.mimeType});
+    if(blob.size>12000000)throw Error('Запись слишком длинная');
+    const response=await fetch('/api/transcribe',{method:'POST',headers:{'Content-Type':current.mimeType||'application/octet-stream'},body:blob});
+    const data=await response.json();
+    if(!response.ok)throw Error(data.error||'Ошибка сервера');
+    const input=document.getElementById(voiceTarget);
+    if(input){input.value=(voiceBase?voiceBase+' ':'')+(data.text||'');}
+    voiceMessage(data.text?'Текст готов. Проверьте перед сохранением.':'Речь не распознана. Попробуйте ещё раз.');
+   }catch(e){voiceMessage('Ошибка: '+e.message)}
+   finally{recorder=null;voiceTarget=null;voiceChunks=[]}
+  };
+  current.onerror=()=>voiceMessage('Ошибка записи микрофона');
+  current.start();document.getElementById(field==='title'?'voiceTitle':'voiceContent').classList.add('listening');
+  voiceMessage('Идёт запись. Нажмите 🎤 ещё раз, чтобы распознать.');
+ }catch(e){voiceMessage('Не удалось включить микрофон: '+e.message)}
+}
+function edit(id=null){stopVoice();voiceMessage('Микрофон: нажмите рядом с нужным полем');editing=id;const n=notes.find(x=>x.id===id);document.getElementById('title').value=n?.title||'';document.getElementById('content').value=n?.text||'';pendingAttachment=n?.attachment||null;document.getElementById('attachment').value='';updateAttachmentInfo();document.getElementById('dialogTitle').textContent=n?'Редактирование':'Новая заметка';document.getElementById('dialog').style.display='flex'}
+function updateAttachmentInfo(){document.getElementById('attachmentInfo').textContent=pendingAttachment?'Прикреплено: '+pendingAttachment.name:'Нет вложения'}
+function removeAttachment(){pendingAttachment=null;document.getElementById('attachment').value='';updateAttachmentInfo()}
+async function prepareImage(file){const url=URL.createObjectURL(file);try{const img=new Image();img.src=url;await img.decode();const scale=Math.min(1,1400/Math.max(img.naturalWidth,img.naturalHeight));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);let quality=.82,data=canvas.toDataURL('image/jpeg',quality);while(data.length>900000&&quality>.35){quality-=.12;data=canvas.toDataURL('image/jpeg',quality)}if(data.length>1200000)throw Error('Фото слишком велико даже после уменьшения');return {name:file.name,type:'image/jpeg',data}}finally{URL.revokeObjectURL(url)}}
+function readAttachment(file){return new Promise((resolve,reject)=>{let reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Не удалось прочитать файл'));reader.readAsDataURL(file)})}
+function closeDialog(){stopVoice();document.getElementById('dialog').style.display='none'}
+async function save(){const title=document.getElementById('title').value.trim(),text=document.getElementById('content').value.trim();const file=document.getElementById('attachment').files[0];if(!title&&!text&&!file&&!pendingAttachment)return alert('Введите текст или прикрепите файл');let attachment=pendingAttachment;if(file){if(!['image/png','image/jpeg','image/webp','application/pdf'].includes(file.type))return alert('Разрешены PNG, JPG, WEBP и PDF');if(file.type==='application/pdf'&&file.size>1024*1024)return alert('PDF больше 1 МБ. Для больших документов подготовим отдельное хранилище.');try{attachment=file.type.startsWith('image/')?await prepareImage(file):{name:file.name,type:file.type,data:await readAttachment(file)}}catch(e){return alert(e.message)}}const n=notes.find(x=>x.id===editing);let next=notes.map(x=>({...x}));let target=next.find(x=>x.id===editing);if(target){target.title=title;target.text=text;target.attachment=attachment}else next.push({id:crypto.randomUUID(),title,text,attachment});try{localStorage.setItem(noteKey(activeBoard),JSON.stringify(next));notes=next;localStorage.setItem(linkKey(activeBoard),JSON.stringify(connections))}catch(e){return alert('Недостаточно места в браузере для файла. Карточка не изменена.')}closeDialog();render()}
+async function analyze(){const chosen=notes.filter(x=>selected.has(x.id));if(!chosen.length)return alert('Сначала выделите одну или несколько карточек');const status=document.getElementById('status');status.textContent='GigaChat анализирует...';try{const response=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes:chosen})});const data=await response.json();if(!response.ok)throw Error(data.error||'Ошибка');notes.push({id:crypto.randomUUID(),title:'Сводка GigaChat',text:data.text,summary:true});selected.clear();persist();render()}catch(e){status.textContent='Ошибка: '+e.message}}
+const ARCHIVE_KEY='ai_board_v12_snapshots';
+function saveArchive(){
+ try{
+  persist();
+  const snap={format:'ai-board-all',version:12,created:new Date().toISOString(),
+   boards:boards.map(b=>({name:b.name,
+    notes:JSON.parse(localStorage.getItem(noteKey(b.id))||'[]'),
+    connections:JSON.parse(localStorage.getItem(linkKey(b.id))||'[]')}))};
+  const history=JSON.parse(localStorage.getItem(ARCHIVE_KEY)||'[]');
+  if(!Array.isArray(history))throw Error('Архив повреждён');
+  history.push(snap);
+  while(history.length>3)history.shift();
+  localStorage.setItem(ARCHIVE_KEY,JSON.stringify(history));
+  alert('Запасная копия сохранена в браузере. Хранятся три последние копии.');
+ }catch(e){alert('Архив не сохранён: '+e.message+' Используйте «Сохранить все доски».')}
+}
+function closeArchive(){document.getElementById('archiveDialog').style.display='none'}
+function saveChosenArchive(){
+ const history=JSON.parse(localStorage.getItem(ARCHIVE_KEY)||'[]');
+ const i=Number(document.getElementById('archiveChoice').value);
+ if(!Number.isInteger(i)||!history[i])return alert('Выберите снимок');
+ const blob=new Blob([JSON.stringify(history[i],null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='ai_board_archive_'+history[i].created.replace(/[:.]/g,'-')+'.json';
+ a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
+ closeArchive();
+}
+function downloadArchive(){
+ try{
+  const history=JSON.parse(localStorage.getItem(ARCHIVE_KEY)||'[]');
+  if(!Array.isArray(history)||!history.length)return alert('Запасных копий пока нет');
+  const choice=document.getElementById('archiveChoice');
+  choice.replaceChildren();
+  history.forEach((x,i)=>{
+   const option=document.createElement('option');
+   option.value=String(i);
+   option.textContent=new Date(x.created).toLocaleString('ru-RU')+' — '+x.boards.length+' досок';
+   choice.append(option);
+  });
+  document.getElementById('archiveDialog').style.display='flex';
+  return;
+  const blob=new Blob([JSON.stringify(history[i],null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='ai_board_archive_'+history[i].created.replace(/[:.]/g,'-')+'.json';
+  a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
+  alert('Снимок скачан. Для восстановления выберите «Восстановить из файла».');
+ }catch(e){alert('Не удалось открыть архив: '+e.message)}
+}
+function exportData(){
+ try{
+  persist();
+  const collection=boards.map(b=>{
+   const items=JSON.parse(localStorage.getItem(noteKey(b.id))||'[]');
+   const links=JSON.parse(localStorage.getItem(linkKey(b.id))||'[]');
+   if(!Array.isArray(items)||!Array.isArray(links))throw Error('Ошибка данных доски '+b.name);
+   return {name:b.name,notes:items,connections:links};
+  });
+  const blob=new Blob([JSON.stringify({format:'ai-board-all',version:11,created:new Date().toISOString(),boards:collection},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='ai_board_all_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
+ }catch(e){alert('Не удалось сохранить копию: '+e.message)}
+}
+async function importData(e){
+ const file=e.target.files[0];if(!file)return;
+ try{
+  const data=JSON.parse(await file.text());
+  let incoming;
+  if(data&&data.format==='ai-board-all'&&Array.isArray(data.boards)){
+   incoming=data.boards;
+  }else{
+   const items=Array.isArray(data)?data:data?.notes;
+   if(!Array.isArray(items))throw Error('Неизвестный формат резервной копии');
+   incoming=[{name:'Восстановленная доска',notes:items,connections:Array.isArray(data?.connections)?data.connections:[]}];
+  }
+  if(!incoming.length||incoming.length>100)throw Error('Недопустимое число досок');
+  const clean=incoming.map((b,index)=>{
+   if(!b||!Array.isArray(b.notes)||!Array.isArray(b.connections))throw Error('Повреждённая доска №'+(index+1));
+   if(b.notes.length>10000||b.connections.length>20000)throw Error('Слишком много записей');
+   const seen=new Set(),mapping=new Map();
+   const items=b.notes.map(n=>{
+    if(!n||typeof n!=='object')throw Error('Повреждённая карточка');
+    const old=String(n.id||crypto.randomUUID());
+    if(seen.has(old))throw Error('Повтор ID карточки');seen.add(old);
+    const id=crypto.randomUUID();mapping.set(old,id);
+    return {id,title:String(n.title||''),text:String(n.text||n.content||''),summary:!!n.summary,
+      x:Number.isFinite(n.x)?n.x:undefined,y:Number.isFinite(n.y)?n.y:undefined,
+      attachment:n.attachment&&typeof n.attachment.data==='string'&&typeof n.attachment.type==='string'?n.attachment:null};
+   });
+   const links=b.connections.filter(c=>Array.isArray(c)&&c.length===2&&mapping.has(String(c[0]))&&mapping.has(String(c[1]))).map(c=>[mapping.get(String(c[0])),mapping.get(String(c[1]))]);
+   return {id:crypto.randomUUID(),name:String(b.name||'Доска').slice(0,70)+' (копия)',notes:items,connections:links};
+  });
+  const count=clean.reduce((sum,b)=>sum+b.notes.length,0);
+  if(!confirm('Добавить '+clean.length+' досок и '+count+' заметок из копии? Существующие доски не изменятся.'))return;
+  persist();
+  const addedKeys=[];
+  try{
+   clean.forEach(b=>{
+    const nk=noteKey(b.id),lk=linkKey(b.id);
+    localStorage.setItem(nk,JSON.stringify(b.notes));addedKeys.push(nk);
+    localStorage.setItem(lk,JSON.stringify(b.connections));addedKeys.push(lk);
+   });
+   const next=boards.concat(clean.map(({id,name})=>({id,name})));
+   localStorage.setItem(BOARD_LIST_KEY,JSON.stringify(next));
+   boards=next;refreshBoards();
+   alert('Восстановлено '+clean.length+' досок. Они добавлены отдельно, исходные данные сохранены.');
+  }catch(err){addedKeys.forEach(k=>localStorage.removeItem(k));throw err}
+ }catch(err){alert('Ошибка восстановления: '+err.message)}
+ finally{e.target.value=''}
+}
+
+render();
+</script><div id="archiveDialog" style="position:fixed;inset:0;z-index:10001;background:#0007;display:none;align-items:center;justify-content:center"><section style="background:white;padding:24px;border-radius:14px;width:min(460px,92vw)"><h2>Мои запасные копии</h2><p>Выберите копию по дате:</p><select id="archiveChoice" style="width:100%;padding:10px;margin-bottom:16px"></select><div><button class="primary" onclick="saveChosenArchive()">Скачать эту копию</button> <button onclick="closeArchive()">Отмена</button></div></section></div></body></html>
